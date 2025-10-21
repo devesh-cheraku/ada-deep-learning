@@ -1,3 +1,4 @@
+# code completed with AI assistance.
 import abc
 
 import torch
@@ -117,17 +118,19 @@ class PatchAutoEncoder(torch.nn.Module, PatchAutoEncoderBase):
             self.patchify = PatchifyLinear(patch_size=patch_size, latent_dim=latent_dim)
             self.encoder = torch.nn.Sequential(
                 torch.nn.Conv2d(latent_dim, latent_dim, kernel_size=3, padding=1),
+                torch.nn.BatchNorm2d(latent_dim),
                 torch.nn.GELU(),
                 torch.nn.Conv2d(latent_dim, latent_dim, kernel_size=3, padding=1),
+                torch.nn.BatchNorm2d(latent_dim),
                 torch.nn.GELU(),
-                torch.nn.Conv2d(latent_dim, bottleneck, kernel_size=1),
+                torch.nn.Conv2d(latent_dim, bottleneck, kernel_size=1)
             )
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             x = self.patchify(x)
-            x = hwc_to_chw(x)
+            x = hwc_to_chw(x).contiguous()
             x = self.encoder(x)
-            return chw_to_hwc(x)
+            return chw_to_hwc(x)            
 
     class PatchDecoder(torch.nn.Module):
         def __init__(self, patch_size: int, latent_dim: int, bottleneck: int):
@@ -135,16 +138,18 @@ class PatchAutoEncoder(torch.nn.Module, PatchAutoEncoderBase):
             self.unpatchify = UnpatchifyLinear(patch_size=patch_size, latent_dim=latent_dim)
             self.decoder = torch.nn.Sequential(
                 torch.nn.Conv2d(bottleneck, latent_dim, kernel_size=3, padding=1),
+                torch.nn.BatchNorm2d(latent_dim),
                 torch.nn.GELU(),
                 torch.nn.Conv2d(latent_dim, latent_dim, kernel_size=3, padding=1),
+                torch.nn.BatchNorm2d(latent_dim),
                 torch.nn.GELU(),
             )
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            x = hwc_to_chw(x)
+            x = hwc_to_chw(x).contiguous()
             x = self.decoder(x)
             x = chw_to_hwc(x)
-            return self.unpatchify(x)
+            return 0.5 * torch.tanh(self.unpatchify(x))
 
     def __init__(self, patch_size: int = 25, latent_dim: int = 128, bottleneck: int = 128):
         super().__init__()
